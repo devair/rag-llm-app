@@ -20,7 +20,8 @@ export class OllamaService implements ILLMService {
     }
     async generateCompletion(prompt: string, context: string[]): Promise<string> {
         const contextFormmated = context.join('\n\n---\n\n')
-        const systemPrompt = `Voce é um assistente preciso. 
+        const systemPrompt = `Voce é um assistente preciso.
+            Responda APENAS em português do brasil.
             Responda à pergunta do usuário usando APENAS o contexto fornecido abaixo.
             \n\nContexto:\n${contextFormmated}`
 
