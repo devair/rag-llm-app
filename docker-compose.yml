@@ -1,6 +1,18 @@
-version: '3.8'
+version: "3.8"
 
 services:
+  # O nome do serviço deve ser exatamente 'redis'
+  redis:
+    image: redis:7-alpine
+    container_name: rag_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   postgres:
     image: pgvector/pgvector:pg16
     container_name: rag_postgres
@@ -13,7 +25,7 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -25,12 +37,20 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu, compute, utility ]
 
   app:
     build: .
     container_name: rag_app
     ports:
       - "3000:3000"
+    command: npm run start:server
     environment:
       NODE_ENV: development
       PORT: 3000
@@ -39,7 +59,11 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgrespassword
       DB_NAME: rag_db
-      OLLAMA_HOST: http://ollama:11434      
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_EMBEDDING_MODEL: nomic-embed-text
+      OLLAMA_CHAT_MODEL: llama3:latest
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,7 +72,35 @@ services:
     volumes:
       - .:/usr/src/app
       - /usr/src/app/node_modules
+      - uploads_data:/app/uploads # Mapeia o volume compartilhado
+
+  worker:
+    build: .
+    container_name: rag_worker
+    command: npm run start:worker
+    environment:
+      NODE_ENV: development
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgrespassword
+      DB_NAME: rag_db
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_EMBEDDING_MODEL: nomic-embed-text
+      OLLAMA_CHAT_MODEL: llama3:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules    
+      - uploads_data:/app/uploads # Mapeia o volume compartilhado
 
 volumes:
   pgdata:
   ollama_data:
+  uploads_data:
