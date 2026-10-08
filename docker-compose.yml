@@ -46,7 +46,9 @@ services:
               capabilities: [ gpu, compute, utility ]
 
   app:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: rag_app
     ports:
       - "3000:3000"
@@ -75,7 +77,9 @@ services:
       - uploads_data:/app/uploads # Mapeia o volume compartilhado
 
   worker:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: rag_worker
     command: npm run start:worker
     environment:
@@ -97,8 +101,19 @@ services:
         condition: service_healthy
     volumes:
       - .:/usr/src/app
-      - /usr/src/app/node_modules    
+      - /usr/src/app/node_modules
       - uploads_data:/app/uploads # Mapeia o volume compartilhado
+
+  # 6. Frontend Client React (Servido pelo Nginx na porta 80) 
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: rag_client    
+    ports:
+      - "80:80"
+    depends_on:
+      - app
 
 volumes:
   pgdata:

@@ -3,11 +3,14 @@ FROM node:24-alpine
 WORKDIR /app
 
 COPY package.json ./
+
+# Instala as dependências 
 RUN npm install
+
 
 COPY . .
 
-# Compila o TypeScript gerando a pasta /app/dist
+# Gera o build estático de produção 
 RUN npm run build
 
 EXPOSE 3000

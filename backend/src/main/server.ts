@@ -3,6 +3,7 @@ import multer from 'multer'
 import path from 'path'
 import fs from 'fs'
 import * as dotenv from 'dotenv'
+import cors from 'cors'
 
 import { initializeDatabase } from '../infrastructure/database/typeorm.config'
 import { VectorRepository } from '../infrastructure/repositories/VectorRepository'
@@ -17,7 +18,9 @@ import { CheckJobStatusController } from '../infrastructure/https/controllers/Ch
 
 dotenv.config()
 
+
 const app = express()
+app.use(cors()); 
 
 // Middleware global de log para você enxergar no terminal qualquer chamada recebida
 app.use((req, res, next) => {
