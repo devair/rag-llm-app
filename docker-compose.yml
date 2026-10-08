@@ -34,7 +34,7 @@ services:
     image: ollama/ollama:latest
     container_name: rag_ollama
     ports:
-      - "11434:11434"
+      - "11434:11434"    
     volumes:
       - ollama_data:/root/.ollama
     deploy:
@@ -46,7 +46,9 @@ services:
               capabilities: [ gpu, compute, utility ]
 
   app:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: rag_app
     ports:
       - "3000:3000"
@@ -75,7 +77,9 @@ services:
       - uploads_data:/app/uploads # Mapeia o volume compartilhado
 
   worker:
-    build: .
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: rag_worker
     command: npm run start:worker
     environment:
@@ -85,6 +89,8 @@ services:
       DB_USER: postgres
       DB_PASSWORD: postgrespassword
       DB_NAME: rag_db
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       OLLAMA_HOST: http://ollama:11434
       OLLAMA_EMBEDDING_MODEL: nomic-embed-text
       OLLAMA_CHAT_MODEL: llama3:latest
@@ -97,8 +103,19 @@ services:
         condition: service_healthy
     volumes:
       - .:/usr/src/app
-      - /usr/src/app/node_modules    
+      - /usr/src/app/node_modules
       - uploads_data:/app/uploads # Mapeia o volume compartilhado
+
+  # 6. Frontend Client React (Servido pelo Nginx na porta 80) 
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: rag_client    
+    ports:
+      - "81:81"
+    depends_on:
+      - app
 
 volumes:
   pgdata:
