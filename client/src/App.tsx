@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import './App.css'
 import type { ChatResponse, IngestResponse, JobStatusResponse, ChatMessage, } from './types/api'
+import { generateId } from './utils/uuid'
 
 const BASE_ENV = import.meta.env.BASE_URL
 const API_BASE_URL = (BASE_ENV && BASE_ENV !== '/') ? BASE_ENV : 'http://localhost:3000'
@@ -57,7 +58,7 @@ function App() {
     if (!question.trim() || isChatLoading) return
 
     const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: generateId(),
       sender: 'user',
       text: question.trim(),
       timestamp: new Date()
@@ -83,7 +84,7 @@ function App() {
       const data: ChatResponse = await response.json()
 
       const assistantMsg: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         sender: 'assistant',
         text: data.answer,
         sources: data.sources,
@@ -94,7 +95,7 @@ function App() {
 
     } catch (err) {
       const errorMsg: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: generateId(),
         sender: 'assistant',
         text: `Error: ${err} || Falha na comunicação com a API.`,
         timestamp: new Date()
