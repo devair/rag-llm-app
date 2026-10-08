@@ -60,6 +60,10 @@ docker-compose up -d --build
 # Ver logs
 docker-compose logs -f app
 docker-compose logs -f worker
+
+# Baixar os modelos para dentro do container do Ollama:
+docker exec -it rag_ollama ollama pull nomic-embed-text
+docker exec -it rag_ollama ollama pull llama3
 ```
 
 Serviços expostos:
