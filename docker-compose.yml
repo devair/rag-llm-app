@@ -113,7 +113,7 @@ services:
       dockerfile: Dockerfile
     container_name: rag_client    
     ports:
-      - "80:80"
+      - "81:81"
     depends_on:
       - app
 
