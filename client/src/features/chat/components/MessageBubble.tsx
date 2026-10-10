@@ -9,8 +9,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
     return (
         <div className={`message-bubble ${message.sender}`}>
-            <div className="message-text">{message.text}</div>
-            {message.sources && message.sources.length > 0 && (
+            <div className="message-text">
+                {message.text}
+                {message.isStreaming && <span className="streaming-cursor" aria-hidden="true" />}
+            </div>
+            {message.sources && message.sources.length > 0 && !message.isStreaming && (
                 <div className="source-box">
                     <strong>Fontes consultadas:</strong>
                     <ul>

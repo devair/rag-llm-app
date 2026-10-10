@@ -136,6 +136,35 @@ Content-Type: application/json
 }
 ```
 
+### Chat RAG com Streaming (SSE)
+```bash
+POST /api/chat/stream
+Content-Type: application/json
+
+{ "question": "Qual é o conteúdo do documento sobre X?" }
+```
+
+**Resposta:** `text/event-stream` com os eventos:
+```
+event: sources
+data: ["documento.pdf", "outro.docx"]
+
+event: token
+data: "O"
+
+event: token
+data: " doc"
+
+...
+
+event: done
+data: "[DONE]"
+```
+
+Cada evento `token` contém um fragmento (token) da resposta gerada pelo LLM,
+permitindo exibir a resposta em tempo real, token a token. Em caso de falha
+durante a geração, é emitido `event: error` com `{ "error": "..." }`.
+
 ## ⚙️ Variáveis de Ambiente
 
 | Variável | Padrão | Descrição |
@@ -178,13 +207,24 @@ Content-Type: application/json
 
 ## 💬 Fluxo de Chat RAG
 
-1. **Cliente** envia pergunta via `POST /api/chat`
+1. **Cliente** envia pergunta via `POST /api/chat` (resposta única) ou `POST /api/chat/stream` (streaming SSE)
 2. **QueryRagUseCase**:
    - Gera embedding da pergunta
    - Busca top-4 chunks mais similares no pgvector
    - Constrói contexto com chunks encontrados
    - Chama Ollama (`llama3:latest`) com prompt RAG
    - Retorna resposta + fontes (nomes dos documentos)
+
+### Streaming via SSE (token a token)
+
+No modo streaming (`executeStream`), o backend usa `ollama.chat({ stream: true })`
+e transmite cada token gerado como um evento SSE (`event: token`). O frontend
+(HttpChatService + parser em `services/sse.ts`) consome o stream com
+`fetch + ReadableStream` (EventSource não suporta POST) e atualiza a bolha da
+mensagem do assistente a cada token recebido, com cursor piscante durante a
+geração. As fontes chegam antes dos tokens via `event: sources`. É possível
+alternar entre os dois modos pelo parâmetro `stream` do hook `useChat`
+(padrão: `true`).
 
 ## 📁 Estrutura de Dados
 

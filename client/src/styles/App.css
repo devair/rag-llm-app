@@ -221,3 +221,19 @@ button:disabled {
   font-size: 0.85em;
   margin-top: 4px;
 }
+/* Cursor piscante exibido durante a resposta em streaming (SSE) */
+.streaming-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1.1em;
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  background-color: currentColor;
+  animation: streaming-blink 1s steps(2, start) infinite;
+}
+
+@keyframes streaming-blink {
+  to {
+    visibility: hidden;
+  }
+}

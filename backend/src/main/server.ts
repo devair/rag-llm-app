@@ -73,6 +73,8 @@ async function bootstrap() {
         app.post('/api/ingest', upload.single('file'), (req, res) => ingestController.handle(req, res))
         app.get('/api/ingest/status/:jobId', (req, res) => checkJobStatusController.handle(req, res))
         app.post('/api/chat', async (req, res) => chatController.handle(req,res))
+        // Chat com streaming via SSE (Server-Sent Events): resposta token a token
+        app.post('/api/chat/stream', async (req, res) => chatController.handleStream(req, res))
 
         // 4. Inicia o Servidor HTTP PRIMEIRO para garantir que a porta escute requisições
         const port = Number(process.env.PORT) || 3000

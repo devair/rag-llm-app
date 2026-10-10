@@ -25,4 +25,6 @@ export interface ChatMessage {
     text: string
     sources?: string[]
     timestamp: Date
+    /** true enquanto a resposta está sendo transmitida token a token via SSE. */
+    isStreaming?: boolean
 }

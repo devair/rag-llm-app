@@ -19,23 +19,38 @@ export class OllamaService implements ILLMService {
         return response.embedding
     }
     async generateCompletion(prompt: string, context: string[]): Promise<string> {
-        const contextFormmated = context.join('\n\n---\n\n')
-        const systemPrompt = `Voce é um assistente preciso.
-            Responda APENAS em português do brasil.
-            Responda à pergunta do usuário usando APENAS o contexto fornecido abaixo.
-            \n\nContexto:\n${contextFormmated}`
-
         const response = await this.client.chat({
             model: this.llmModel,
-            messages: [
-                { role: 'system', content: systemPrompt },
-                { role: 'user', content: prompt }
-            ],
+            messages: this.buildRagMessages(prompt, context),
             stream: false
         })
 
         return response.message.content
     }
 
+    async* streamCompletion(prompt: string, context: string[]): AsyncGenerator<string> {
+        const response = await this.client.chat({
+            model: this.llmModel,
+            messages: this.buildRagMessages(prompt, context),
+            stream: true
+        })
 
+        for await (const chunk of response) {
+            const token = chunk.message?.content
+            if (token) yield token
+        }
+    }
+
+    private buildRagMessages(prompt: string, context: string[]) {
+        const contextFormmated = context.join('\n\n---\n\n')
+        const systemPrompt = `Voce é um assistente preciso.
+            Responda APENAS em português do brasil.
+            Responda à pergunta do usuário usando APENAS o contexto fornecido abaixo.
+            \n\nContexto:\n${contextFormmated}`
+
+        return [
+            { role: 'system' as const, content: systemPrompt },
+            { role: 'user' as const, content: prompt }
+        ]
+    }
 }
