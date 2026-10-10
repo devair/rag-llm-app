@@ -15,6 +15,7 @@ import { EnqueueIngestionUseCase } from '../use-cases/EnqueueIngestionUseCase'
 import { QueryRagUseCase } from '../use-cases/QueryRagUseCase'
 import { IngestController } from '../infrastructure/https/controllers/IngestController'
 import { CheckJobStatusController } from '../infrastructure/https/controllers/CheckJobStatusController'
+import { ChatController } from '../infrastructure/https/controllers/ChatController'
 
 dotenv.config()
 
@@ -62,30 +63,16 @@ async function bootstrap() {
         // 3. Instanciação dos Casos de Uso
         const enqueueIngestionUseCase = new EnqueueIngestionUseCase(jobRepo, queueProvider)
         const queryRagUseCase = new QueryRagUseCase(vectorRepo, llmService)
-
+        
         // 4. Instância dos Controllers
         const ingestController = new IngestController(enqueueIngestionUseCase)
         const checkJobStatusController = new CheckJobStatusController(jobRepo)
+        const chatController = new ChatController(queryRagUseCase)
 
 
         app.post('/api/ingest', upload.single('file'), (req, res) => ingestController.handle(req, res))
         app.get('/api/ingest/status/:jobId', (req, res) => checkJobStatusController.handle(req, res))
-        /**
-         * POST /api/chat
-         */
-        app.post('/api/chat', async (req, res) => {
-            try {
-                const { question } = req.body
-                if (!question) {
-                    return res.status(400).json({ error: 'Pergunta não informada.' })
-                }
-
-                const result = await queryRagUseCase.execute(question)
-                return res.status(200).json(result)
-            } catch (error: any) {
-                return res.status(500).json({ error: error.message })
-            }
-        })
+        app.post('/api/chat', async (req, res) => chatController.handle(req,res))
 
         // 4. Inicia o Servidor HTTP PRIMEIRO para garantir que a porta escute requisições
         const port = Number(process.env.PORT) || 3000
