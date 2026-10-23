@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # O nome do serviço deve ser exatamente 'redis'
   redis:

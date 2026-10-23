@@ -9,4 +9,11 @@ export class HttpChatService implements IChatService {
         })
     }
 
+    streamQuestion(
+        question: string,
+        onToken: (token: string) => void,
+        onSources: (sources: string[]) => void
+    ): Promise<void> {
+        return httpClient.stream('/api/chat/stream', { question }, onToken, onSources)
+    }
 }

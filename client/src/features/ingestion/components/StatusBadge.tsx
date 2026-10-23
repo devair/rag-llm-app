@@ -21,7 +21,7 @@ const STATUS_LABELS: Record<string, BadgeStyle> = {
     COMPLETED: { label: 'Concluído', className: 'badge badge-success' },
     PROCESSING: { label: 'Processando...', className: 'badge badge-processing' },
     FAILED: { label: 'Falhou', className: 'badge badge-failed' },
-    PENDING: DEFAULT_BADGE,
+    PENDING: { label: 'Pendente', className: 'badge badge-pending' },
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {

@@ -1,33 +1,28 @@
-import type { RefObject } from "react"
-import type { ChatMessage } from "../../../types/api"
+import type { ChatMessage } from '../../../types/api'
 import { MessageBubble } from "./MessageBubble"
 
-interface ChatWindowProps {
+export interface ChatWindowProps {
     messages: ChatMessage[]
     isLoading: boolean
-    endRef: RefObject<HTMLDivElement | null>
-
+    endRef: React.RefObject<HTMLDivElement | null>
 }
 
-/** Janela de mensagens do chat — apenas composição visual. */
 export function ChatWindow({ messages, isLoading, endRef }: ChatWindowProps) {
-
     return (
-        <div className="chat-window">
-            {messages.length === 0 ? (
-                <div className="empty-chat">
-                    Envie uma mensagem para consultar a base de conhecimento
-                </div>
-            ) : (
-                messages.map((message) => <MessageBubble key={message.id}
-                    message={message} />)
-            )}
+        <div className="chat-window" ref={endRef}>
+            {messages
+                .filter((message) => !(isLoading && message.sender === "assistant" && !message.text))
+                .map((message) => (
+                    <MessageBubble key={message.id} message={message} />
+                ))}
+
             {isLoading && (
-                <div className="message-bubble assistant loading">
-                    <span>Analisando contexto e gerando resposta...</span>
+                <div className="chat-typing" role="status" aria-label="Gerando resposta">
+                    <span />
+                    <span />
+                    <span />
                 </div>
             )}
-            <div ref={endRef} />
         </div>
     )
 }

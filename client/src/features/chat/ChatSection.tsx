@@ -9,7 +9,7 @@ import { ChatWindow } from './components/ChatWindow'
  * de apresentação. Não conhece detalhes de HTTP nem de layout global.
  */
 export function ChatSection() {
-    const { messages, question, setQuestion, isLoading, sendQuestion } = useChat()
+    const { messages, question, setQuestion, isLoading, isStreaming, sendQuestion } = useChat()
     const endRef = useAutoScroll({ messages, isLoading })
 
     return (
@@ -20,6 +20,7 @@ export function ChatSection() {
                 isLoading={isLoading}
                 onQuestionChange={setQuestion}
                 onSubmit={sendQuestion}
+                isStreaming={isStreaming}
             />
         </Card>
     )

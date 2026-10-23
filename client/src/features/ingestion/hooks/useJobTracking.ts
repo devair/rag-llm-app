@@ -30,7 +30,11 @@ export function useJobTracking({ service = ingestionService }: UseJobTrackingOpt
         try {
           const updated = await service.getJobStatus(job.jobId)
           setTrackedJobs((prev) =>
-            prev.map((item) => (item.jobId === updated.jobId ? updated : item)),
+            prev.map((item) => (
+              item.jobId === job.jobId
+                ? { ...item, ...updated, jobId: job.jobId }
+                : item
+            )),
           )
         } catch (error) {
           console.error('Erro ao consultar o status do job', error)

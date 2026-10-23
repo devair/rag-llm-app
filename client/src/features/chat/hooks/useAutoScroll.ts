@@ -1,5 +1,5 @@
-import { useEffect, useRef } from "react"
-import type { ChatMessage } from "../../../types/api"
+import { useEffect, useRef } from 'react'
+import type { ChatMessage } from '../../../types/api'
 
 interface AutoScrollProps {
     messages: ChatMessage[]
@@ -7,13 +7,15 @@ interface AutoScrollProps {
 }
 
 /**
- * Responsabilidade única: manter o chat rolado até a última mensagem.
+ * Scroll automaticamente para a última mensagem ou área de carga
  */
 export function useAutoScroll({ messages, isLoading }: AutoScrollProps) {
     const endRef = useRef<HTMLDivElement>(null)
 
     useEffect(() => {
-        endRef.current?.scrollIntoView({ behavior: 'smooth' })
+        if (endRef.current) {
+            endRef.current.scrollIntoView({ behavior: "smooth" })
+        }
     }, [messages, isLoading])
 
     return endRef

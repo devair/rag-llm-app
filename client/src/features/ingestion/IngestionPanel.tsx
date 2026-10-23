@@ -19,11 +19,15 @@ export function IngestionPanel() {
                 <UploadForm
                     isUploading={isUploading}
                     hasSelectedFile={selectedFile !== null}
+                    selectedFileName={selectedFile?.name ?? null}
                     onFileChange={handleFileChange}
                     onSubmit={handleSubmitUpload}
                 />
                 {feedbackMessage &&
-                    <div className="feedback-msg">
+                    <div
+                        className={`feedback-msg ${feedbackMessage.startsWith('Error:') ? 'feedback-error' : ''}`}
+                        role="status"
+                    >
                         {feedbackMessage}
                     </div>
                 }

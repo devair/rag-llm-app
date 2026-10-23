@@ -1,30 +1,43 @@
-import type { FormEvent } from "react"
 
-interface ChatFormProps {
+export interface ChatFormProps {
     question: string
     isLoading: boolean
     onQuestionChange: (value: string) => void
-    onSubmit: () => void
+    onSubmit: (e: React.FormEvent) => void
+    isStreaming?: boolean
 }
 
-
-/** Formulário controlado do chat — sem lógica de negócio. */
-export function ChatForm({ question, isLoading, onQuestionChange, onSubmit }: ChatFormProps) {
-    const handleSubmit = (event: FormEvent) => {
-        event.preventDefault()
-        onSubmit()
-    }
+export function ChatForm({
+    question,
+    isLoading,
+    onQuestionChange,
+    onSubmit,
+    isStreaming = false
+}: ChatFormProps) {
     return (
-        <form onSubmit={handleSubmit} className="chat-form">
+        <div className="chat-form">
             <input
                 type="text"
+                placeholder="Digite sua pergunta..."
                 value={question}
-                onChange={(event) => onQuestionChange(event.target.value)}
+                onChange={(e) => onQuestionChange(e.target.value)}
                 disabled={isLoading}
+                className="chat-input"
             />
-            <button type="submit" disabled={isLoading || !question.trim()}>
-                Enviar
+            <button
+                type="submit"
+                onClick={onSubmit}
+                disabled={isLoading}
+                className="chat-submit-btn"
+            >
+                {isLoading ? 'Processando...' : 'Enviar'}
             </button>
-        </form>
+
+            {isStreaming && (
+                <div className="stream-indicator">
+                    <span className="stream-text">Resposta sendo gerada...</span>
+                </div>
+            )}
+        </div>
     )
 }

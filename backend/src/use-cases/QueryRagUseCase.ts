@@ -10,12 +10,26 @@ export class QueryRagUseCase {
     async execute(question: string): Promise<{ answer: string; sources: string[] }> {
         const queryEmbedding = await this.llmService.generateEmbedding(question)
         const similiarChunks = await this.vectorRepo.searchSimiliar(queryEmbedding, 4)
+        const contexts = similiarChunks.map(c => c.content)
+        const sources = Array.from(new Set(similiarChunks.map(c => c.documentName)))
+        const answer = await this.llmService.generateCompletion(question, contexts)
+
+        return { answer, sources }
+    }
+
+    async executeStream(question: string): Promise<{
+        sources: string[]
+        answerStream: AsyncIterable<string>
+    }> {
+        const queryEmbedding = await this.llmService.generateEmbedding(question)
+        const similiarChunks = await this.vectorRepo.searchSimiliar(queryEmbedding, 4)
 
         const contexts = similiarChunks.map(c => c.content)
         const sources = Array.from(new Set(similiarChunks.map(c => c.documentName)))
 
-        const answer = await this.llmService.generateCompletion(question, contexts)
-
-        return { answer, sources }
+        return {
+            sources,
+            answerStream: this.llmService.generateCompletionStream(question, contexts)
+        }
     }
 }

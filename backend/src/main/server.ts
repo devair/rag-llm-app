@@ -19,9 +19,8 @@ import { ChatController } from '../infrastructure/https/controllers/ChatControll
 
 dotenv.config()
 
-
 const app = express()
-app.use(cors()); 
+app.use(cors())
 
 // Middleware global de log para você enxergar no terminal qualquer chamada recebida
 app.use((req, res, next) => {
@@ -29,7 +28,7 @@ app.use((req, res, next) => {
     next()
 })
 
-// Direcionamento do Uploads para a raiz do projeto
+// Direcionamento dos Uploads para a raiz do projeto
 const uploadDir = path.join(process.cwd(), 'uploads')
 if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true })
@@ -45,8 +44,6 @@ const chatModel = process.env.OLLAMA_CHAT_MODEL || 'llama3:latest'
 
 async function bootstrap() {
     try {
-
-
         // 1. Inicializa Conexão com o Banco de Dados
         console.log('[Server] Conectando ao PostgreSQL...')
         await initializeDatabase()
@@ -63,24 +60,25 @@ async function bootstrap() {
         // 3. Instanciação dos Casos de Uso
         const enqueueIngestionUseCase = new EnqueueIngestionUseCase(jobRepo, queueProvider)
         const queryRagUseCase = new QueryRagUseCase(vectorRepo, llmService)
-        
+
         // 4. Instância dos Controllers
         const ingestController = new IngestController(enqueueIngestionUseCase)
         const checkJobStatusController = new CheckJobStatusController(jobRepo)
         const chatController = new ChatController(queryRagUseCase)
 
-
+        // 5. Define routes
         app.post('/api/ingest', upload.single('file'), (req, res) => ingestController.handle(req, res))
         app.get('/api/ingest/status/:jobId', (req, res) => checkJobStatusController.handle(req, res))
-        app.post('/api/chat', async (req, res) => chatController.handle(req,res))
+        app.post('/api/chat', (req, res) => chatController.handle(req, res))
+        app.post('/api/chat/stream', (req, res) => chatController.handleStream(req, res))
 
-        // 4. Inicia o Servidor HTTP PRIMEIRO para garantir que a porta escute requisições
+        // 6. Inicia o Servidor HTTP
         const port = Number(process.env.PORT) || 3000
         app.listen(port, '0.0.0.0', () => {
             console.log(`[Server] Servidor HTTP rodando na porta ${port}`)
         })
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('[Server Error] Falha durante a inicialização do bootstrap:', error)
     }
 }

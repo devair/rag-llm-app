@@ -16,7 +16,7 @@ export interface JobStatusResponse {
     fileName?: string
     status: JobStatusType
     errorMessage?: string | null
-    updatedAt: string
+    updatedAt?: string
 }
 
 export interface ChatMessage {

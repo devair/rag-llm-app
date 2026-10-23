@@ -1,9 +1,9 @@
 import { Request, Response } from "express"
-import { IngestionJobRepository } from "../../repositories/IngestionJobRepository"
+import { IIngestionJobRepository } from "../../../domain/interfaces/IIngestionJobRepository"
 
 // CheckJobStatusController.ts
 export class CheckJobStatusController {
-    constructor(private jobRepository: IngestionJobRepository) { }
+    constructor(private jobRepository: IIngestionJobRepository) { }
 
     async handle(req: Request, res: Response): Promise<Response> {
         try {
@@ -14,13 +14,12 @@ export class CheckJobStatusController {
                 return res.status(404).json({ error: 'Job não encontrado.' })
             }
 
-            // Retorna apenas os dados salvos na tabela do banco
             return res.status(200).json({
-                id: job.id,
+                jobId: job.id,
+                fileName: job.originalName,
                 status: job.status,
-                error: job.errorMessage || null,
-                createdAt: job.createdAt,
-                updatedAt: job.updatedAt
+                errorMessage: job.errorMessage || null,
+                updatedAt: job.updatedAt ?? job.createdAt
             })
         } catch (error: any) {
             return res.status(500).json({ error: error.message })

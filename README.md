@@ -10,10 +10,10 @@ Esta aplicação permite:
 - **Chat RAG** - responde perguntas baseadas nos documentos ingeridos
 - **Arquitetura limpa** com separação de domínio, casos de uso e infraestrutura
 
-## 🏗️ Arquitetura
+## 🏗️ Arquitetura do Backend
 
 ```
-src/
+backend/src/
 ├── domain/                 # Camada de domínio (regras de negócio)
 │   ├── entities/           # Entidades: IngestionJob, DocumentChunk
 │   └── interfaces/         # Contratos: IVectorRepository, ILLMService, IIngestionJobRepository
@@ -33,6 +33,44 @@ src/
 └── infrastructure/queue/worker.ts  # Worker BullMQ para processar jobs
 ```
 
+## 🖥️ Arquitetura do Client
+
+O frontend está em `client/` e é uma SPA construída com React, TypeScript e Vite. A interface é organizada por funcionalidades: cada feature mantém seu container, componentes de apresentação e hooks de estado. A comunicação HTTP fica isolada em serviços, que implementam contratos para que a UI não dependa diretamente dos endpoints.
+
+```text
+client/src/
+├── App.tsx                         # Composição da tela principal
+├── main.tsx                        # Inicialização do React
+├── features/
+│   ├── chat/
+│   │   ├── ChatSection.tsx         # Container da feature de chat
+│   │   ├── components/             # Formulário, janela e balões de mensagem
+│   │   └── hooks/                  # Estado do chat e rolagem automática
+│   └── ingestion/
+│       ├── IngestionPanel.tsx      # Container de upload e status dos jobs
+│       ├── components/             # Formulário, lista de jobs e badges de status
+│       └── hooks/                  # Upload e polling dos jobs
+├── services/
+│   ├── interfaces/                 # Contratos de chat e ingestão
+│   ├── httpClient.ts               # Requisições JSON, upload e consumo NDJSON
+│   ├── HttpChatService.ts          # Integração com endpoints de chat
+│   ├── HttpIngestionService.ts     # Integração com endpoints de ingestão
+│   └── serviceContainer.ts          # Instâncias dos serviços da aplicação
+├── shared/components/              # Componentes reutilizáveis, como Card
+├── config/apiConfig.ts             # URL base da API por ambiente
+├── types/api.ts                    # Tipos compartilhados das respostas da API
+├── styles/                         # Estilos globais
+└── utils/                          # Utilitários compartilhados
+```
+
+### Responsabilidades e fluxos
+
+- **`App.tsx`** organiza a tela principal e monta as features de chat e ingestão.
+- **Chat:** `ChatSection` conecta o hook `useChat` aos componentes visuais. O hook delega as chamadas ao `IChatService`; `HttpChatService` usa o `httpClient` para enviar perguntas e consumir tokens NDJSON de `POST /api/chat/stream`, atualizando a resposta enquanto ela é gerada.
+- **Ingestão:** `IngestionPanel` conecta `useDocumentUpload` ao formulário de upload e `useJobTracking` à lista de jobs. O serviço de ingestão envia o arquivo como `FormData` e consulta o status dos jobs periodicamente até que terminem.
+- **Serviços:** `serviceContainer.ts` centraliza as implementações HTTP. As interfaces permitem substituir ou simular os serviços sem acoplar os componentes às chamadas de rede.
+- **Configuração e apresentação:** `apiConfig.ts` escolhe a URL da API para desenvolvimento ou produção; `types/api.ts` define os contratos de dados; `styles/` reúne a aparência compartilhada.
+
 ## 🔧 Tecnologias
 
 | Camada | Tecnologia |
@@ -43,6 +81,8 @@ src/
 | Fila | Redis + BullMQ |
 | LLM Local | Ollama (embeddings: `nomic-embed-text`, chat: `llama3:latest`) |
 | Parsers | pdf-parse, mammoth (DOCX), jsdom (HTML) |
+| Client | React 19, TypeScript, Vite |
+| Servidor do Client | Nginx (arquivos estáticos e proxy `/api`) |
 | Container | Docker / Docker Compose |
 
 ## 🚀 Como Executar
@@ -72,6 +112,8 @@ Serviços expostos:
 - **PostgreSQL**: localhost:5432
 - **Redis**: localhost:6379
 
+Os serviços `app` e `worker` compartilham `backend/uploads` para que os arquivos enviados pela API estejam disponíveis ao processamento em segundo plano. Após alterar a configuração dos volumes, recrie os containers com `docker compose up -d --build --force-recreate app worker`.
+
 ### Desenvolvimento Local
 
 ```bash
@@ -86,7 +128,14 @@ npm run dev:server
 
 # Em outro terminal, roda worker em modo watch
 npm run dev:worker
+
+# Em outro terminal, inicia o client Vite
+cd ../client
+npm install
+npm run dev
 ```
+
+Na execução local, o Vite disponibiliza o frontend e `apiConfig.ts` aponta para `http://localhost:3000`. No Docker, o build do Vite é servido pelo Nginx, que encaminha `/api/` para o serviço `app`.
 
 ## 📡 Endpoints da API
 
@@ -136,6 +185,18 @@ Content-Type: application/json
 }
 ```
 
+Para receber a resposta incrementalmente, use:
+
+```bash
+POST /api/chat/stream
+Content-Type: application/json
+Accept: application/x-ndjson
+
+{ "question": "Qual é o conteúdo do documento sobre X?" }
+```
+
+O endpoint envia eventos NDJSON à medida que o Ollama gera o texto: primeiro blocos de texto (`{"type":"token","token":"..."}`), depois as fontes consultadas (`{"type":"sources","sources":[...]}`) e, ao terminar, `{"type":"done"}`. O endpoint JSON `POST /api/chat` continua disponível para clientes existentes.
+
 ## ⚙️ Variáveis de Ambiente
 
 | Variável | Padrão | Descrição |
@@ -178,13 +239,14 @@ Content-Type: application/json
 
 ## 💬 Fluxo de Chat RAG
 
-1. **Cliente** envia pergunta via `POST /api/chat`
+1. **Cliente** envia pergunta via `POST /api/chat/stream`
 2. **QueryRagUseCase**:
    - Gera embedding da pergunta
    - Busca top-4 chunks mais similares no pgvector
    - Constrói contexto com chunks encontrados
-   - Chama Ollama (`llama3:latest`) com prompt RAG
-   - Retorna resposta + fontes (nomes dos documentos)
+3. **OllamaService** chama Ollama (`llama3:latest`) em modo streaming e encaminha cada bloco gerado para o controller.
+4. **ChatController** responde como NDJSON; o Nginx desativa buffering para que os blocos cheguem ao cliente sem esperar o fim da resposta.
+5. **Cliente** acrescenta cada bloco à mensagem em exibição e mostra as fontes consultadas.
 
 ## 📁 Estrutura de Dados
 
@@ -221,6 +283,15 @@ npm run start:server   # Inicia servidor compilado
 npm run start:worker   # Inicia worker compilado
 npm run dev:server     # Dev server com hot reload (tsx watch)
 npm run dev:worker     # Dev worker com hot reload (tsx watch)
+```
+
+No diretório `client/`:
+
+```bash
+npm run dev            # Servidor de desenvolvimento Vite
+npm run build          # Verifica os tipos e gera o build de produção
+npm run preview        # Serve localmente o build de produção
+npm run lint           # Executa ESLint
 ```
 
 ## 📝 Notas
