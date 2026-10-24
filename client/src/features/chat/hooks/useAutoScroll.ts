@@ -14,7 +14,10 @@ export function useAutoScroll({ messages, isLoading }: AutoScrollProps) {
 
     useEffect(() => {
         if (endRef.current) {
-            endRef.current.scrollIntoView({ behavior: "smooth" })
+            endRef.current.scrollTo({
+                top: endRef.current.scrollHeight,
+                behavior: "smooth"
+            })
         }
     }, [messages, isLoading])
 

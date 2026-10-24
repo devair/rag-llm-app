@@ -1,4 +1,5 @@
 import type { ChatMessage } from "../../../types/api"
+import { RichText } from "./RichText"
 
 interface MessageBubbleProps {
     message: ChatMessage
@@ -9,7 +10,11 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
     return (
         <div className={`message-bubble ${message.sender}`}>
-            <div className="message-text">{message.text}</div>
+            {message.sender === "assistant" ? (
+                <RichText text={message.text} />
+            ) : (
+                <div className="message-text">{message.text}</div>
+            )}
             {message.sources && message.sources.length > 0 && (
                 <div className="source-box">
                     <strong>Fontes consultadas:</strong>

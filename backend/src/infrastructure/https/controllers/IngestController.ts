@@ -1,4 +1,5 @@
 import { Request, Response } from "express"
+import { unlink } from "node:fs/promises"
 import { EnqueueIngestionUseCase } from "../../../use-cases/EnqueueIngestionUseCase"
 
 export class IngestController {
@@ -27,8 +28,18 @@ export class IngestController {
                 statusUrl: `/api/ingest/status/${result.jobId}`
             })
 
-        } catch (error: any) {
-            return res.status(500).json({ error: error.message })
+        } catch (error) {
+            if (req.file) {
+                try {
+                    await unlink(req.file.path)
+                } catch (cleanupError) {
+                    console.error('[IngestController] Falha ao remover arquivo de upload após erro:', cleanupError)
+                }
+            }
+
+            console.error('[IngestController] Falha ao enfileirar ingestão:', error)
+            const message = error instanceof Error ? error.message : 'Erro interno ao receber arquivo.'
+            return res.status(500).json({ error: message })
         }
     }
 }

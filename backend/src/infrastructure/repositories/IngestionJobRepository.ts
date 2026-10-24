@@ -37,5 +37,4 @@ export class IngestionJobRepository implements IIngestionJobRepository {
             entity.updatedAt
         )
     }
-
 }

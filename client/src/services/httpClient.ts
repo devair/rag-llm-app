@@ -6,19 +6,21 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
     try {
         response = await fetch(`${API_BASE_URL}${path}`, init)
-
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}) as Record<string, unknown>)
-            const message = typeof errorData.error === "string" ?
-                errorData.error : `Error ${response.status}`
-            throw new ApiError(message, response.status)
-        }
-
-        return response.json() as Promise<T>
-
-    } catch {
-        throw new ApiError('Falha na comunicação com a API.')
+    } catch (error) {
+        throw new ApiError(
+            error instanceof Error ? error.message : 'Falha na comunicação com a API.'
+        )
     }
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({})) as Record<string, unknown>
+        const message = typeof errorData.error === "string"
+            ? errorData.error
+            : `Error ${response.status}`
+        throw new ApiError(message, response.status)
+    }
+
+    return response.json() as Promise<T>
 }
 
 export const httpClient = {
@@ -29,6 +31,7 @@ export const httpClient = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     }),
+    delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
     stream: async (
         path: string,
         data: unknown,

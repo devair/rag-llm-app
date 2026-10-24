@@ -8,6 +8,7 @@ const ACTIVE_STATUSES: JobStatusType[] = ['PENDING', 'PROCESSING']
 
 interface UseJobTrackingOptions {
   service?: IIngestionService
+  onJobCompleted?: () => void
 }
 
 function isActive(job: JobStatusResponse): boolean {
@@ -18,7 +19,10 @@ function isActive(job: JobStatusResponse): boolean {
  * Responsabilidade única: fazer polling do status dos jobs ativos e
  * manter a lista sincronizada com o backend.
  */
-export function useJobTracking({ service = ingestionService }: UseJobTrackingOptions = {}) {
+export function useJobTracking({
+  service = ingestionService,
+  onJobCompleted
+}: UseJobTrackingOptions = {}) {
   const [trackedJobs, setTrackedJobs] = useState<JobStatusResponse[]>([])
 
   useEffect(() => {
@@ -29,6 +33,9 @@ export function useJobTracking({ service = ingestionService }: UseJobTrackingOpt
       activeJobs.forEach(async (job) => {
         try {
           const updated = await service.getJobStatus(job.jobId)
+          if (updated.status === 'COMPLETED' && job.status !== 'COMPLETED') {
+            onJobCompleted?.()
+          }
           setTrackedJobs((prev) =>
             prev.map((item) => (
               item.jobId === job.jobId
@@ -43,7 +50,7 @@ export function useJobTracking({ service = ingestionService }: UseJobTrackingOpt
     }, POLL_INTERVAL_MS)
 
     return () => clearInterval(interval)
-  }, [trackedJobs, service, setTrackedJobs])
+  }, [trackedJobs, service, onJobCompleted])
 
   const trackJob = (job: JobStatusResponse) => {
     setTrackedJobs((prev) => [job, ...prev])

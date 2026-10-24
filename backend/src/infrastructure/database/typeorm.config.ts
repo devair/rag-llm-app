@@ -2,6 +2,7 @@ import 'reflect-metadata'
 import { DataSource } from 'typeorm'
 import { DocumentChunkSchema } from './entities/DocumentChunkSchema'
 import { IngestionJobSchema } from './entities/IngestionJobSchema'
+import { SessionMessageSchema, SessionSchema } from './entities/SessionSchema'
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -12,7 +13,7 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME || 'rag_db',
   synchronize: true, // Apenas para dev; cria a tabela automaticamente
   logging: false,
-  entities: [DocumentChunkSchema, IngestionJobSchema],
+  entities: [DocumentChunkSchema, IngestionJobSchema, SessionSchema, SessionMessageSchema],
 })
 
 /**

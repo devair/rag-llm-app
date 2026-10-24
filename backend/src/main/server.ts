@@ -4,6 +4,7 @@ import path from 'path'
 import fs from 'fs'
 import * as dotenv from 'dotenv'
 import cors from 'cors'
+import type { NextFunction, Request, Response } from 'express'
 
 import { initializeDatabase } from '../infrastructure/database/typeorm.config'
 import { VectorRepository } from '../infrastructure/repositories/VectorRepository'
@@ -16,6 +17,19 @@ import { QueryRagUseCase } from '../use-cases/QueryRagUseCase'
 import { IngestController } from '../infrastructure/https/controllers/IngestController'
 import { CheckJobStatusController } from '../infrastructure/https/controllers/CheckJobStatusController'
 import { ChatController } from '../infrastructure/https/controllers/ChatController'
+import { SessionController } from '../infrastructure/https/controllers/SessionController'
+import { CreateSessionUseCase } from '../use-cases/CreateSessionUseCase'
+import { CreateSessionMessageUseCase } from '../use-cases/CreateSessionMessageUseCase'
+import { GetSessionHistoryUseCase } from '../use-cases/GetSessionHistoryUseCase'
+import { SessionRepository } from '../infrastructure/repositories/SessionRepository'
+import { DeleteSessionMessageUseCase } from '../use-cases/DeleteSessionMessageUseCase'
+import { DeleteSessionUseCase } from '../use-cases/DeleteSessionUseCase'
+import { ListSessionsUseCase } from '../use-cases/ListSessionsUseCase'
+import { UpdateSessionMessageUseCase } from '../use-cases/UpdateSessionMessageUseCase'
+import { KnowledgeBaseController } from '../infrastructure/https/controllers/KnowledgeBaseController'
+import { DeleteKnowledgeDocumentUseCase } from '../use-cases/DeleteKnowledgeDocumentUseCase'
+import { ListKnowledgeDocumentsUseCase } from '../use-cases/ListKnowledgeDocumentsUseCase'
+import { UpdateSessionTitleUseCase } from '../use-cases/UpdateSessionTitleUseCase'
 
 dotenv.config()
 
@@ -34,7 +48,18 @@ if (!fs.existsSync(uploadDir)) {
     fs.mkdirSync(uploadDir, { recursive: true })
 }
 
-const upload = multer({ dest: uploadDir })
+const supportedFileExtensions = new Set(['.pdf', '.docx', '.txt', '.html'])
+const upload = multer({
+    dest: uploadDir,
+    fileFilter: (_req, file, callback) => {
+        const extension = path.extname(file.originalname).toLowerCase()
+        if (!supportedFileExtensions.has(extension)) {
+            callback(new Error('Formato não suportado. Envie PDF, DOCX, TXT ou HTML.'))
+            return
+        }
+        callback(null, true)
+    }
+})
 
 app.use(express.json())
 
@@ -60,17 +85,75 @@ async function bootstrap() {
         // 3. Instanciação dos Casos de Uso
         const enqueueIngestionUseCase = new EnqueueIngestionUseCase(jobRepo, queueProvider)
         const queryRagUseCase = new QueryRagUseCase(vectorRepo, llmService)
+        const sessionRepository = new SessionRepository()
+        const createSessionUseCase = new CreateSessionUseCase(sessionRepository)
+        const createSessionMessageUseCase = new CreateSessionMessageUseCase(sessionRepository)
+        const updateSessionTitleUseCase = new UpdateSessionTitleUseCase(sessionRepository)
+        const getHistoryUseCase = new GetSessionHistoryUseCase(sessionRepository)
+        const listSessionsUseCase = new ListSessionsUseCase(sessionRepository)
+        const updateSessionMessageUseCase = new UpdateSessionMessageUseCase(sessionRepository)
+        const deleteSessionMessageUseCase = new DeleteSessionMessageUseCase(sessionRepository)
+        const deleteSessionUseCase = new DeleteSessionUseCase(sessionRepository)
+        const listKnowledgeDocumentsUseCase = new ListKnowledgeDocumentsUseCase(vectorRepo)
+        const deleteKnowledgeDocumentUseCase = new DeleteKnowledgeDocumentUseCase(vectorRepo)
 
         // 4. Instância dos Controllers
         const ingestController = new IngestController(enqueueIngestionUseCase)
         const checkJobStatusController = new CheckJobStatusController(jobRepo)
-        const chatController = new ChatController(queryRagUseCase)
+        const chatController = new ChatController(
+            queryRagUseCase,
+            createSessionMessageUseCase,
+            updateSessionTitleUseCase
+        )
+        const knowledgeBaseController = new KnowledgeBaseController(
+            listKnowledgeDocumentsUseCase,
+            deleteKnowledgeDocumentUseCase
+        )
+        const sessionController = new SessionController(
+            createSessionUseCase,
+            createSessionMessageUseCase,
+            getHistoryUseCase,
+            listSessionsUseCase,
+            updateSessionMessageUseCase,
+            deleteSessionMessageUseCase,
+            deleteSessionUseCase
+        )
 
         // 5. Define routes
         app.post('/api/ingest', upload.single('file'), (req, res) => ingestController.handle(req, res))
         app.get('/api/ingest/status/:jobId', (req, res) => checkJobStatusController.handle(req, res))
+        app.get('/api/knowledge/documents', (req, res) => knowledgeBaseController.listDocuments(req, res))
+        app.delete('/api/knowledge/documents', (req, res) => knowledgeBaseController.deleteDocument(req, res))
         app.post('/api/chat', (req, res) => chatController.handle(req, res))
         app.post('/api/chat/stream', (req, res) => chatController.handleStream(req, res))
+        app.post('/api/session', (req, res) => sessionController.create(req, res))
+        app.post('/api/sessions', (req, res) => sessionController.create(req, res))
+        app.get('/api/sessions', (req, res) => sessionController.list(req, res))
+        app.get('/api/sessions/:sessionId/messages', (req, res) => sessionController.getHistory(req, res))
+        app.post('/api/sessions/:sessionId/messages', (req, res) => sessionController.createMessage(req, res))
+        app.put('/api/sessions/:sessionId/messages/:messageId', (req, res) => sessionController.updateMessage(req, res))
+        app.delete('/api/sessions/:sessionId/messages/:messageId', (req, res) => sessionController.deleteMessage(req, res))
+        app.delete('/api/sessions/:sessionId', (req, res) => sessionController.delete(req, res))
+
+        app.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
+            if (res.headersSent) {
+                next(error)
+                return
+            }
+
+            if (error instanceof multer.MulterError) {
+                res.status(400).json({ error: 'Falha ao receber o arquivo.' })
+                return
+            }
+
+            if (error instanceof Error) {
+                res.status(400).json({ error: error.message })
+                return
+            }
+
+            console.error('[Server] Erro HTTP não tratado:', error)
+            res.status(500).json({ error: 'Erro interno do servidor.' })
+        })
 
         // 6. Inicia o Servidor HTTP
         const port = Number(process.env.PORT) || 3000

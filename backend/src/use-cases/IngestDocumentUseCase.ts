@@ -1,4 +1,3 @@
-import { text } from "node:stream/consumers"
 import { DocumentChunk } from "../domain/entities/DocumentChunk"
 import { ILLMService } from "../domain/interfaces/ILLMService"
 import { IVectorRepository } from "../domain/interfaces/IVectorRepository"

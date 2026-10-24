@@ -18,10 +18,14 @@ export class DocumentParserFactory {
             return result.value
         }
 
-        if (mimeType === 'text/html' || ext === 'html' || ext === 'txt'){
+        if (mimeType === 'text/html' || ext === 'html') {
             const dom = new JSDOM(buffer.toString('utf8'))
             return dom.window.document.body.textContent || ''
         }            
+
+        if (mimeType === 'text/plain' || ext === 'txt') {
+            return buffer.toString('utf8')
+        }
 
         return buffer.toString('utf8')
     }

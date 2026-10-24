@@ -22,14 +22,16 @@ export class ProcessIngestionJobUseCase {
             await this.jobRepo.update(job)
 
             // 1. Lê o arquivo temporário salvo no upload
-            // const fileContent = await fs.readFile(job.filePath, 'utf-8')
-            const fileBuffer = await fs.readFile(job.filePath) 
-            
+            const fileBuffer = await fs.readFile(job.filePath)
+
             const text = await DocumentParserFactory.parse(
                 fileBuffer,
-                job.mimeType as string,
-                job.originalName as string
+                job.mimeType,
+                job.originalName
             )
+            if (!text.trim()) {
+                throw new Error('O arquivo não contém texto para indexar.')
+            }
 
             const textChunks = this.splitTextIntoChunks(text, 1000, 200)
             const chunksToSave: DocumentChunk[] = []
@@ -44,18 +46,39 @@ export class ProcessIngestionJobUseCase {
             // 3. Salva os chunks e seus embeddings no PGVector
             await this.vectorRepo.saveMany(chunksToSave)
 
-            // 4. Limpa o arquivo temporário do disco
-            await fs.unlink(job.filePath).catch(() => null)
-
-            // 5. Atualiza o status do Job para COMPLETED
+            // Atualiza o status do Job para COMPLETED
             job.markAsCompleted()
             await this.jobRepo.update(job)
 
-        } catch (error: any) {
-            job.markAsFailed(error?.message || 'Erro desconhecido durante o processamento.')
-            await this.jobRepo.update(job)
+        } catch (error) {
+            const message = error instanceof Error
+                ? error.message
+                : 'Erro desconhecido durante o processamento.'
+            job.markAsFailed(message)
+            try {
+                await this.jobRepo.update(job)
+            } catch (updateError) {
+                console.error(`[ProcessIngestionJobUseCase] Falha ao persistir status do job ${jobId}:`, updateError)
+                throw new AggregateError(
+                    [error, updateError],
+                    `O processamento do job ${jobId} falhou e seu status não pôde ser atualizado.`
+                )
+            }
 
-            await fs.unlink(job.filePath).catch(() => null)
+            throw error
+        } finally {
+            try {
+                await fs.unlink(job.filePath)
+            } catch (cleanupError) {
+                const isMissingFile =
+                    typeof cleanupError === 'object' &&
+                    cleanupError !== null &&
+                    'code' in cleanupError &&
+                    cleanupError.code === 'ENOENT'
+                if (!isMissingFile) {
+                    console.error(`[ProcessIngestionJobUseCase] Falha ao remover arquivo temporário do job ${jobId}:`, cleanupError)
+                }
+            }
         }
 
     }

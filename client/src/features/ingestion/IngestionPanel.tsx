@@ -4,8 +4,12 @@ import { UploadForm } from "./components/UploadForm"
 import { useDocumentUpload } from "./hooks/useDocumentUpload"
 import { useJobTracking } from "./hooks/useJobTracking"
 
-export function IngestionPanel() {
-    const { trackJob, trackedJobs } = useJobTracking()
+interface IngestionPanelProps {
+    onJobCompleted?: () => void
+}
+
+export function IngestionPanel({ onJobCompleted }: IngestionPanelProps) {
+    const { trackJob, trackedJobs } = useJobTracking({ onJobCompleted })
     const { selectedFile, isUploading, feedbackMessage, handleFileChange, uploadSelectedFile } = useDocumentUpload()
 
     const handleSubmitUpload = async () => {

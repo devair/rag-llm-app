@@ -4,15 +4,13 @@ export interface ChatFormProps {
     isLoading: boolean
     onQuestionChange: (value: string) => void
     onSubmit: (e: React.FormEvent) => void
-    isStreaming?: boolean
 }
 
 export function ChatForm({
     question,
     isLoading,
     onQuestionChange,
-    onSubmit,
-    isStreaming = false
+    onSubmit
 }: ChatFormProps) {
     return (
         <div className="chat-form">
@@ -38,12 +36,6 @@ export function ChatForm({
             >
                 {isLoading ? 'Processando...' : 'Enviar'}
             </button>
-
-            {isStreaming && (
-                <div className="stream-indicator">
-                    <span className="stream-text">Resposta sendo gerada...</span>
-                </div>
-            )}
         </div>
     )
 }

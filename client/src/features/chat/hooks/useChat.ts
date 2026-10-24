@@ -6,17 +6,19 @@ import { chatService } from "../../../services/serviceContainer"
 
 interface UseChatOptions {
     service?: IChatService
+    sessionId?: string
 }
 
 /**
  * Lógica de estado do chat (SRP): a UI apenas consome este hook,
  * sem conhecer HTTP nem de layout global.
  */
-export function useChat({ service = chatService }: UseChatOptions = {}) {
+export function useChat({ service = chatService, sessionId }: UseChatOptions = {}) {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [question, setQuestion] = useState<string>("")
     const [isLoading, setIsLoading] = useState<boolean>(false)
     const [isStreaming, setIsStreaming] = useState<boolean>(false)
+    const [error, setError] = useState<string | null>(null)
 
     const appendMessage = useCallback((message: ChatMessage) => {
         setMessages((prev) => [...prev, message])
@@ -34,8 +36,8 @@ export function useChat({ service = chatService }: UseChatOptions = {}) {
         ))
     }, [])
 
-    const sendQuestion = useCallback(async () => {
-        const trimmed = question.trim()
+    const sendQuestion = useCallback(async (questionOverride?: string) => {
+        const trimmed = (questionOverride ?? question).trim()
         if (!trimmed || isLoading) return
 
         // Adiciona mensagem do usuário
@@ -54,6 +56,7 @@ export function useChat({ service = chatService }: UseChatOptions = {}) {
             timestamp: new Date()
         })
         setQuestion("")
+        setError(null)
         setIsLoading(true)
         setIsStreaming(true)
 
@@ -61,16 +64,19 @@ export function useChat({ service = chatService }: UseChatOptions = {}) {
             await service.streamQuestion(
                 trimmed,
                 (token) => appendToken(assistantMessageId, token),
-                (sources) => updateMessage(assistantMessageId, { sources })
+                (sources) => updateMessage(assistantMessageId, { sources }),
+                sessionId
             )
         } catch (error) {
             console.error("Erro ao receber resposta via streaming:", error)
+            const message = error instanceof Error ? error.message : "Erro ao processar resposta."
+            setError(message)
             updateMessage(assistantMessageId, { text: "Erro ao processar resposta." })
         } finally {
             setIsLoading(false)
             setIsStreaming(false)
         }
-    }, [question, isLoading, appendMessage, appendToken, service, updateMessage])
+    }, [question, isLoading, appendMessage, appendToken, service, sessionId, updateMessage])
 
-    return { messages, question, setQuestion, isLoading, isStreaming, sendQuestion }
+    return { messages, question, setQuestion, isLoading, isStreaming, error, sendQuestion }
 }

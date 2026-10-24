@@ -15,7 +15,13 @@ export class EnqueueIngestionUseCase {
 
         await this.jobRepo.create(job)
 
-        await this.queueProvider.enqueueIngestionJob(jobId)
+        try {
+            await this.queueProvider.enqueueIngestionJob(jobId)
+        } catch (error) {
+            job.markAsFailed(error instanceof Error ? error.message : 'Falha ao adicionar job à fila.')
+            await this.jobRepo.update(job)
+            throw error
+        }
 
         return { jobId }
     }
