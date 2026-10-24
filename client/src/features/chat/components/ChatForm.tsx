@@ -21,6 +21,12 @@ export function ChatForm({
                 placeholder="Digite sua pergunta..."
                 value={question}
                 onChange={(e) => onQuestionChange(e.target.value)}
+                onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        onSubmit(e)
+                    }
+                }}
                 disabled={isLoading}
                 className="chat-input"
             />
