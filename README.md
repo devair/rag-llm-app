@@ -8,6 +8,8 @@ Esta aplicação permite:
 - **Ingestão de documentos** (PDF, DOCX, HTML, TXT) com processamento assíncrono via fila
 - **Busca vetorial** usando embeddings locais (Ollama)
 - **Chat RAG** - responde perguntas baseadas nos documentos ingeridos
+- **Gestão de sessões de chat** - criar, atualizar e deletar conversas
+- **Gestão de documentos do conhecimento** - adicionar e remover documentos da base de conhecimento
 - **Arquitetura limpa** com separação de domínio, casos de uso e infraestrutura
 
 ## 🏗️ Arquitetura do Backend
@@ -15,16 +17,26 @@ Esta aplicação permite:
 ```
 backend/src/
 ├── domain/                 # Camada de domínio (regras de negócio)
-│   ├── entities/           # Entidades: IngestionJob, DocumentChunk
-│   └── interfaces/         # Contratos: IVectorRepository, ILLMService, IIngestionJobRepository
+│   ├── entities/           # Entidades: IngestionJob, DocumentChunk, Session, Message
+│   └── interfaces/         # Contratos: IVectorRepository, ILLMService, IIngestionJobRepository, ISessionRepository
 ├── use-cases/              # Casos de uso da aplicação
 │   ├── EnqueueIngestionUseCase.ts      # Enfileira job de ingestão
 │   ├── ProcessIngestionJobUseCase.ts   # Processa documento (parse, chunk, embed, save)
 │   ├── QueryRagUseCase.ts              # Busca vetorial + geração de resposta
-│   └── IngestDocumentUseCase.ts        # Orquestração de ingestão
+│   ├── IngestDocumentUseCase.ts        # Orquestração de ingestão
+│   ├── CreateSessionUseCase.ts         # Cria nova sessão de chat
+│   ├── UpdateSessionUseCase.ts         # Atualiza título da sessão
+│   ├── DeleteSessionUseCase.ts         # Deleta sessão
+│   ├── CreateSessionMessageUseCase.ts  # Adiciona mensagem à sessão
+│   ├── UpdateSessionMessageUseCase.ts  # Atualiza mensagem na sessão
+│   ├── DeleteSessionMessageUseCase.ts  # Remove mensagem da sessão
+│   ├── ListSessionsUseCase.ts          # Lista sessões
+│   ├── GetSessionHistoryUseCase.ts     # Histórico de mensagens
+│   ├── ListKnowledgeDocumentsUseCase.ts# Lista documentos do conhecimento
+│   └── DeleteKnowledgeDocumentUseCase.ts# Deleta documento do conhecimento
 ├── infrastructure/         # Implementações técnicas
 │   ├── database/           # TypeORM + PostgreSQL (pgvector)
-│   ├── repositories/       # VectorRepository, IngestionJobRepository
+│   ├── repositories/       # VectorRepository, IngestionJobRepository, SessionRepository
 │   ├── services/           # OllamaService, DocumentParserFactory
 │   ├── queue/              # BullMqQueueProvider (Redis)
 │   └── https/controllers/  # IngestController, CheckJobStatusController
@@ -46,10 +58,19 @@ client/src/
 │   │   ├── ChatSection.tsx         # Container da feature de chat
 │   │   ├── components/             # Formulário, janela e balões de mensagem
 │   │   └── hooks/                  # Estado do chat e rolagem automática
-│   └── ingestion/
-│       ├── IngestionPanel.tsx      # Container de upload e status dos jobs
-│       ├── components/             # Formulário, lista de jobs e badges de status
-│       └── hooks/                  # Upload e polling dos jobs
+│   ├── ingestion/
+│   │   ├── IngestionPanel.tsx      # Container de upload e status dos jobs
+│   │   ├── components/             # Formulário, lista de jobs e badges de status
+│   │   └── hooks/                  # Upload e polling dos jobs
+│   ├── knowledge-base/
+│   │   ├── KnowledgeBaseSection.tsx  # Container da feature de KB
+│   │   ├── KnowledgeDocumentList.tsx # Lista de documentos
+│   │   └── hooks/                  # Hooks para gestão de KB
+│   └── session/
+│       ├── SessionSection.tsx      # Container da feature de sessões
+│       ├── SessionSidebar.tsx      # Sidebar de sessões
+│       ├── SessionView.tsx        # Visualização de conversas
+│       └── hooks/                  # Hooks para gestão de sessões
 ├── services/
 │   ├── interfaces/                 # Contratos de chat e ingestão
 │   ├── httpClient.ts               # Requisições JSON, upload e consumo NDJSON
@@ -65,9 +86,11 @@ client/src/
 
 ### Responsabilidades e fluxos
 
-- **`App.tsx`** organiza a tela principal e monta as features de chat e ingestão.
+- **`App.tsx`** organiza a tela principal e monta as features de chat, ingestão, conhecimento base e sessões.
 - **Chat:** `ChatSection` conecta o hook `useChat` aos componentes visuais. O hook delega as chamadas ao `IChatService`; `HttpChatService` usa o `httpClient` para enviar perguntas e consumir tokens NDJSON de `POST /api/chat/stream`, atualizando a resposta enquanto ela é gerada.
 - **Ingestão:** `IngestionPanel` conecta `useDocumentUpload` ao formulário de upload e `useJobTracking` à lista de jobs. O serviço de ingestão envia o arquivo como `FormData` e consulta o status dos jobs periodicamente até que terminem.
+- **Conhecimento Base:** `KnowledgeBaseSection` gerencia a lista e busca de documentos do conhecimento, com `KnowledgeDocumentList` exibindo os documentos disponíveis.
+- **Sessões:** `SessionSection` gerencia a lista e visualização de conversas, com `SessionSidebar` para navegação entre sessões e `SessionView` para exibição das mensagens.
 - **Serviços:** `serviceContainer.ts` centraliza as implementações HTTP. As interfaces permitem substituir ou simular os serviços sem acoplar os componentes às chamadas de rede.
 - **Configuração e apresentação:** `apiConfig.ts` escolhe a URL da API para desenvolvimento ou produção; `types/api.ts` define os contratos de dados; `styles/` reúne a aparência compartilhada.
 
