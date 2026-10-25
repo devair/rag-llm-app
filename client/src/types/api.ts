@@ -1,8 +1,3 @@
-export interface ChatResponse {
-    answer: string
-    sources?: string[]
-}
-
 export interface IngestResponse {
     message: string
     jobId: string

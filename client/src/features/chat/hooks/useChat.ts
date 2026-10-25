@@ -17,7 +17,6 @@ export function useChat({ service = chatService, sessionId }: UseChatOptions = {
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [question, setQuestion] = useState<string>("")
     const [isLoading, setIsLoading] = useState<boolean>(false)
-    const [isStreaming, setIsStreaming] = useState<boolean>(false)
     const [error, setError] = useState<string | null>(null)
 
     const appendMessage = useCallback((message: ChatMessage) => {
@@ -58,7 +57,6 @@ export function useChat({ service = chatService, sessionId }: UseChatOptions = {
         setQuestion("")
         setError(null)
         setIsLoading(true)
-        setIsStreaming(true)
 
         try {
             await service.streamQuestion(
@@ -74,9 +72,8 @@ export function useChat({ service = chatService, sessionId }: UseChatOptions = {
             updateMessage(assistantMessageId, { text: "Erro ao processar resposta." })
         } finally {
             setIsLoading(false)
-            setIsStreaming(false)
         }
     }, [question, isLoading, appendMessage, appendToken, service, sessionId, updateMessage])
 
-    return { messages, question, setQuestion, isLoading, isStreaming, error, sendQuestion }
+    return { messages, question, setQuestion, isLoading, error, sendQuestion }
 }

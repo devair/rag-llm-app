@@ -2,10 +2,6 @@ import type { Session, SessionMessage } from "../types/api"
 import { httpClient } from "./httpClient"
 import type { ISessionService } from "./interfaces/ISessionService"
 
-interface CreateMessageResponse {
-    message: SessionMessage
-}
-
 interface CreateSessionResponse extends Session {
     sessionId: string
 }
@@ -30,17 +26,5 @@ export class HttpSessionService implements ISessionService {
         return httpClient.get<SessionMessage[]>(
             `/api/sessions/${encodeURIComponent(sessionId)}/messages`
         )
-    }
-
-    async createMessage(
-        sessionId: string,
-        content: string,
-        role: SessionMessage["role"]
-    ): Promise<SessionMessage> {
-        const response = await httpClient.postJson<CreateMessageResponse>(
-            `/api/sessions/${encodeURIComponent(sessionId)}/messages`,
-            { content, role }
-        )
-        return response.message
     }
 }

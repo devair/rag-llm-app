@@ -4,9 +4,4 @@ export interface ISessionService {
     createSession(): Promise<Session>
     listSessions(): Promise<Session[]>
     getMessages(sessionId: string): Promise<SessionMessage[]>
-    createMessage(
-        sessionId: string,
-        content: string,
-        role: SessionMessage["role"]
-    ): Promise<SessionMessage>
 }
