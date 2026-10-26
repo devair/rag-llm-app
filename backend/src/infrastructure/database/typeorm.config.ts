@@ -3,6 +3,10 @@ import { DataSource } from 'typeorm'
 import { DocumentChunkSchema } from './entities/DocumentChunkSchema'
 import { IngestionJobSchema } from './entities/IngestionJobSchema'
 import { SessionMessageSchema, SessionSchema } from './entities/SessionSchema'
+import {
+  SessionContextSessionSchema,
+  SessionMemoryChunkSchema
+} from './entities/SessionMemorySchema'
 
 export const AppDataSource = new DataSource({
   type: 'postgres',
@@ -13,7 +17,14 @@ export const AppDataSource = new DataSource({
   database: process.env.DB_NAME || 'rag_db',
   synchronize: true, // Apenas para dev; cria a tabela automaticamente
   logging: false,
-  entities: [DocumentChunkSchema, IngestionJobSchema, SessionSchema, SessionMessageSchema],
+  entities: [
+    DocumentChunkSchema,
+    IngestionJobSchema,
+    SessionSchema,
+    SessionMessageSchema,
+    SessionContextSessionSchema,
+    SessionMemoryChunkSchema
+  ],
 })
 
 /**

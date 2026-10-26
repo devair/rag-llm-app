@@ -30,6 +30,8 @@ import { KnowledgeBaseController } from '../infrastructure/https/controllers/Kno
 import { DeleteKnowledgeDocumentUseCase } from '../use-cases/DeleteKnowledgeDocumentUseCase'
 import { ListKnowledgeDocumentsUseCase } from '../use-cases/ListKnowledgeDocumentsUseCase'
 import { UpdateSessionTitleUseCase } from '../use-cases/UpdateSessionTitleUseCase'
+import { SessionMemoryRepository } from '../infrastructure/repositories/SessionMemoryRepository'
+import { UpdateSessionContextUseCase } from '../use-cases/UpdateSessionContextUseCase'
 
 dotenv.config()
 
@@ -78,14 +80,20 @@ async function bootstrap() {
         const vectorRepo = new VectorRepository()
         const jobRepo = new IngestionJobRepository()
         const llmService = new OllamaService(ollamaHost, embeddingModel, chatModel)
+        const sessionRepository = new SessionRepository()
+        const sessionMemoryRepository = new SessionMemoryRepository()
 
         console.log('[Server] Conectando ao provedor de fila Redis (BullMQ)...')
         const queueProvider = new BullMqQueueProvider()
 
         // 3. Instanciação dos Casos de Uso
         const enqueueIngestionUseCase = new EnqueueIngestionUseCase(jobRepo, queueProvider)
-        const queryRagUseCase = new QueryRagUseCase(vectorRepo, llmService)
-        const sessionRepository = new SessionRepository()
+        const queryRagUseCase = new QueryRagUseCase(
+            vectorRepo,
+            llmService,
+            sessionRepository,
+            sessionMemoryRepository
+        )
         const createSessionUseCase = new CreateSessionUseCase(sessionRepository)
         const createSessionMessageUseCase = new CreateSessionMessageUseCase(sessionRepository)
         const updateSessionTitleUseCase = new UpdateSessionTitleUseCase(sessionRepository)
@@ -93,7 +101,11 @@ async function bootstrap() {
         const listSessionsUseCase = new ListSessionsUseCase(sessionRepository)
         const updateSessionMessageUseCase = new UpdateSessionMessageUseCase(sessionRepository)
         const deleteSessionMessageUseCase = new DeleteSessionMessageUseCase(sessionRepository)
-        const deleteSessionUseCase = new DeleteSessionUseCase(sessionRepository)
+        const deleteSessionUseCase = new DeleteSessionUseCase(sessionRepository, sessionMemoryRepository)
+        const updateSessionContextUseCase = new UpdateSessionContextUseCase(
+            sessionRepository,
+            sessionMemoryRepository
+        )
         const listKnowledgeDocumentsUseCase = new ListKnowledgeDocumentsUseCase(vectorRepo)
         const deleteKnowledgeDocumentUseCase = new DeleteKnowledgeDocumentUseCase(vectorRepo)
 
@@ -116,7 +128,8 @@ async function bootstrap() {
             listSessionsUseCase,
             updateSessionMessageUseCase,
             deleteSessionMessageUseCase,
-            deleteSessionUseCase
+            deleteSessionUseCase,
+            updateSessionContextUseCase
         )
 
         // 5. Define routes
@@ -130,6 +143,12 @@ async function bootstrap() {
         app.post('/api/sessions', (req, res) => sessionController.create(req, res))
         app.get('/api/sessions', (req, res) => sessionController.list(req, res))
         app.get('/api/sessions/:sessionId/messages', (req, res) => sessionController.getHistory(req, res))
+        app.get('/api/sessions/:sessionId/context-sessions', (req, res) =>
+            sessionController.getContextSessions(req, res)
+        )
+        app.put('/api/sessions/:sessionId/context-sessions', (req, res) =>
+            sessionController.updateContextSessions(req, res)
+        )
         app.post('/api/sessions/:sessionId/messages', (req, res) => sessionController.createMessage(req, res))
         app.put('/api/sessions/:sessionId/messages/:messageId', (req, res) => sessionController.updateMessage(req, res))
         app.delete('/api/sessions/:sessionId/messages/:messageId', (req, res) => sessionController.deleteMessage(req, res))

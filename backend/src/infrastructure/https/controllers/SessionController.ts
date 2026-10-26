@@ -6,6 +6,10 @@ import { DeleteSessionUseCase } from "../../../use-cases/DeleteSessionUseCase"
 import { GetSessionHistoryUseCase } from "../../../use-cases/GetSessionHistoryUseCase"
 import { ListSessionsUseCase } from "../../../use-cases/ListSessionsUseCase"
 import { UpdateSessionMessageUseCase } from "../../../use-cases/UpdateSessionMessageUseCase"
+import {
+    SessionContextValidationError,
+    UpdateSessionContextUseCase
+} from "../../../use-cases/UpdateSessionContextUseCase"
 
 export class SessionController {
     constructor(
@@ -15,7 +19,8 @@ export class SessionController {
         private readonly listSessionsUseCase: ListSessionsUseCase,
         private readonly updateSessionMessageUseCase: UpdateSessionMessageUseCase,
         private readonly deleteSessionMessageUseCase: DeleteSessionMessageUseCase,
-        private readonly deleteSessionUseCase: DeleteSessionUseCase
+        private readonly deleteSessionUseCase: DeleteSessionUseCase,
+        private readonly updateSessionContextUseCase: UpdateSessionContextUseCase
     ) {}
 
     async create(req: Request, res: Response): Promise<Response> {
@@ -59,7 +64,6 @@ export class SessionController {
         if (!sessionId) {
             return res.status(400).json({ error: "sessionId não informado." })
         }
-
         try {
             const messages = await this.getHistoryUseCase.execute(sessionId as string)
             if (!messages) {
@@ -70,6 +74,54 @@ export class SessionController {
             console.error("[SessionController] Falha ao buscar histórico:", error)
             const message = error instanceof Error ? error.message : "Erro interno ao buscar histórico."
             return res.status(500).json({ error: message })
+        }
+    }
+
+    async getContextSessions(req: Request, res: Response): Promise<Response> {
+        const { sessionId } = req.params
+        if (typeof sessionId !== "string" || !sessionId.trim()) {
+            return res.status(400).json({ error: "sessionId não informado." })
+        }
+
+        try {
+            const sourceSessionIds = await this.updateSessionContextUseCase.get(sessionId.trim())
+            if (!sourceSessionIds) {
+                return res.status(404).json({ error: "Sessão não encontrada." })
+            }
+            return res.status(200).json({ sessionIds: sourceSessionIds })
+        } catch (error) {
+            console.error("[SessionController] Falha ao buscar sessões de contexto:", error)
+            const message = error instanceof Error
+                ? error.message
+                : "Erro interno ao buscar sessões de contexto."
+            return res.status(500).json({ error: message })
+        }
+    }
+
+    async updateContextSessions(req: Request, res: Response): Promise<Response> {
+        const { sessionId } = req.params
+        const { sessionIds } = req.body ?? {}
+        if (typeof sessionId !== "string" || !sessionId.trim() || !Array.isArray(sessionIds) ||
+            !sessionIds.every((id: unknown) => typeof id === "string" && id.trim())) {
+            return res.status(400).json({ error: "sessionId e uma lista válida de sessionIds são obrigatórios." })
+        }
+
+        try {
+            const updatedSessionIds = await this.updateSessionContextUseCase.update(
+                sessionId.trim(),
+                sessionIds.map((id: string) => id.trim())
+            )
+            if (!updatedSessionIds) {
+                return res.status(404).json({ error: "Sessão não encontrada." })
+            }
+            return res.status(200).json({ sessionIds: updatedSessionIds })
+        } catch (error) {
+            console.error("[SessionController] Falha ao atualizar sessões de contexto:", error)
+            const message = error instanceof Error
+                ? error.message
+                : "Erro interno ao atualizar sessões de contexto."
+            return res.status(error instanceof SessionContextValidationError ? 400 : 500)
+                .json({ error: message })
         }
     }
 

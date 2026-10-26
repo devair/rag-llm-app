@@ -6,6 +6,10 @@ interface CreateSessionResponse extends Session {
     sessionId: string
 }
 
+interface SessionContextSessionsResponse {
+    sessionIds: string[]
+}
+
 export class HttpSessionService implements ISessionService {
     async createSession(): Promise<Session> {
         const response = await httpClient.postJson<CreateSessionResponse>("/api/sessions", {})
@@ -26,5 +30,20 @@ export class HttpSessionService implements ISessionService {
         return httpClient.get<SessionMessage[]>(
             `/api/sessions/${encodeURIComponent(sessionId)}/messages`
         )
+    }
+
+    async getContextSessions(sessionId: string): Promise<string[]> {
+        const response = await httpClient.get<SessionContextSessionsResponse>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/context-sessions`
+        )
+        return response.sessionIds
+    }
+
+    async updateContextSessions(sessionId: string, sessionIds: string[]): Promise<string[]> {
+        const response = await httpClient.putJson<SessionContextSessionsResponse>(
+            `/api/sessions/${encodeURIComponent(sessionId)}/context-sessions`,
+            { sessionIds }
+        )
+        return response.sessionIds
     }
 }

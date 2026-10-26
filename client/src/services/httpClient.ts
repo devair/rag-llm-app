@@ -31,6 +31,11 @@ export const httpClient = {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     }),
+    putJson: <T>(path: string, data: unknown) => request<T>(path, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    }),
     delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
     stream: async (
         path: string,

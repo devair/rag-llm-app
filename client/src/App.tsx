@@ -57,6 +57,7 @@ function App() {
         {activeSection === "sessions" ? (
           <SessionSection
             selectedSession={selectedSession}
+            sessions={sessions}
             onSessionUpdated={() => reloadSessions(false)}
             initialQuestion={initialQuestion}
             isCreatingSession={isCreating}

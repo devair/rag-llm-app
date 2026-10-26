@@ -9,6 +9,7 @@ Esta aplicação permite:
 - **Busca vetorial** usando embeddings locais (Ollama)
 - **Chat RAG** - responde perguntas baseadas nos documentos ingeridos
 - **Gestão de sessões de chat** - criar, atualizar e deletar conversas
+- **Memória entre sessões** - seleciona sessões anteriores e recupera mensagens relevantes por similaridade semântica
 - **Gestão de documentos do conhecimento** - adicionar e remover documentos da base de conhecimento
 - **Arquitetura limpa** com separação de domínio, casos de uso e infraestrutura
 
@@ -17,8 +18,8 @@ Esta aplicação permite:
 ```
 backend/src/
 ├── domain/                 # Camada de domínio (regras de negócio)
-│   ├── entities/           # Entidades: IngestionJob, DocumentChunk, Session, Message
-│   └── interfaces/         # Contratos: IVectorRepository, ILLMService, IIngestionJobRepository, ISessionRepository
+│   ├── entities/           # Entidades: IngestionJob, DocumentChunk, Session, Message e SessionMemory
+│   └── interfaces/         # Contratos de repositórios e serviços do domínio
 ├── use-cases/              # Casos de uso da aplicação
 │   ├── EnqueueIngestionUseCase.ts      # Enfileira job de ingestão
 │   ├── ProcessIngestionJobUseCase.ts   # Processa documento (parse, chunk, embed, save)
@@ -36,7 +37,7 @@ backend/src/
 │   └── DeleteKnowledgeDocumentUseCase.ts# Deleta documento do conhecimento
 ├── infrastructure/         # Implementações técnicas
 │   ├── database/           # TypeORM + PostgreSQL (pgvector)
-│   ├── repositories/       # VectorRepository, IngestionJobRepository, SessionRepository
+│   ├── repositories/       # Repositórios de vetores, jobs, sessões e memória conversacional
 │   ├── services/           # OllamaService, DocumentParserFactory
 │   ├── queue/              # BullMqQueueProvider (Redis)
 │   └── https/controllers/  # IngestController, CheckJobStatusController
@@ -90,7 +91,7 @@ client/src/
 - **Chat:** `ChatSection` conecta o hook `useChat` aos componentes visuais. O hook delega as chamadas ao `IChatService`; `HttpChatService` usa o `httpClient` para enviar perguntas e consumir tokens NDJSON de `POST /api/chat/stream`, atualizando a resposta enquanto ela é gerada.
 - **Ingestão:** `IngestionPanel` conecta `useDocumentUpload` ao formulário de upload e `useJobTracking` à lista de jobs. O serviço de ingestão envia o arquivo como `FormData` e consulta o status dos jobs periodicamente até que terminem.
 - **Conhecimento Base:** `KnowledgeBaseSection` gerencia a lista e busca de documentos do conhecimento, com `KnowledgeDocumentList` exibindo os documentos disponíveis.
-- **Sessões:** `SessionSection` gerencia a lista e visualização de conversas, com `SessionSidebar` para navegação entre sessões e `SessionView` para exibição das mensagens.
+- **Sessões:** `SessionSection` gerencia a lista e visualização de conversas e permite selecionar até 10 sessões como contexto. O backend indexa mensagens antigas sob demanda com embeddings, recupera as quatro mais relevantes por pergunta e mantém essa seleção entre requisições.
 - **Serviços:** `serviceContainer.ts` centraliza as implementações HTTP. As interfaces permitem substituir ou simular os serviços sem acoplar os componentes às chamadas de rede.
 - **Configuração e apresentação:** `apiConfig.ts` escolhe a URL da API para desenvolvimento ou produção; `types/api.ts` define os contratos de dados; `styles/` reúne a aparência compartilhada.
 

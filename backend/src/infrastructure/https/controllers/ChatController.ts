@@ -55,7 +55,7 @@ export class ChatController {
             }
             await this.updateSessionTitle(sessionId, question)
 
-            const result = await this.queryRagUseCase.execute(question.trim())
+            const result = await this.queryRagUseCase.execute(question.trim(), sessionId)
             if (!(await this.saveMessage(sessionId, result.answer, "assistant"))) {
                 return res.status(404).json({ error: 'Sessão não encontrada.' })
             }
@@ -87,7 +87,10 @@ export class ChatController {
             }
             await this.updateSessionTitle(sessionId, question)
 
-            const { sources, answerStream } = await this.queryRagUseCase.executeStream(question.trim())
+            const { sources, answerStream } = await this.queryRagUseCase.executeStream(
+                question.trim(),
+                sessionId
+            )
 
             res.status(200)
             res.set({
